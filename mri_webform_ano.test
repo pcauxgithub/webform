@@ -1,0 +1,9 @@
+<?php
+
+/**
+* @file
+* Tests file for the mri_webform_ano module.
+*/
+class Mri_webform_anoTestCase extends DrupalWebTestCase {
+	
+}

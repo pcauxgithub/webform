@@ -1,0 +1,382 @@
+<?php
+/**
+* @filesource
+* MRI Anonymize Webform sender IPs
+* Company MRI
+* Klinikum rechts der Isar der Technischen Universität München
+* Autor: F.P.
+* 
+* @return
+*/
+
+
+/**
+* Before the webform will be saved >> ip modifying > mask and param assign
+* @param undefined $node
+* @param undefined $submission
+* 
+* @return
+*/
+
+function mri_webform_ano_webform_submission_presave($node, &$submission) {
+	$config_settings = mri_webform_ano_load_config_data();
+	$ip = $submission->remote_addr;
+	if($config_settings['default_testmode'] == 'testmode_on'){
+		//check if drupal scope var example_ip is defined
+		if (variable_get('example_ip') != NULL) {
+	    drupal_set_message('ATTENTION: Test IP ACTIVATET! the IP is:'.variable_get('example_ip'),'status');
+	    $ip = variable_get('example_ip');
+  }
+	  else {
+	    drupal_set_message('HINT (DebugMessage): Test Modus is activated - but there is no IP Adress available! ERROR!','status');
+	  } 
+	}
+	else {
+    drupal_set_message('HINT (DebugMessage): Test Modus not activated!','status');
+  }
+  $ip = mri_webform_ano_ip_cutter($ip, $config_settings['default_oct_type']);    
+  $encoded = md5($submission->remote_addr); //encode the IP with MD5
+
+  
+ 	drupal_set_message(t('The Original Submission Sender IP without of any modify: '.$submission->remote_addr), 'status');
+  $submission->remote_addr = $ip;
+  drupal_set_message(t('The encoded Submission Sender IP after modify: '.$encoded), 'status');
+  drupal_set_message(t('The Remote Submission Sender IP after modify: '.$ip), 'status');
+  echo ("<br>ende");
+  /*
+  // Insert a record into table if a submission is added.
+  db_insert('webform_mri_conf')
+  ->fields(array(
+  'sid' => $form_state['values']['sid'],
+  'fic_octet'=> $form_state['values']['fic_octet'],
+  'hash'=> $form_state['values']['fic_octet'],
+  ))->execute();
+  */
+}
+
+/**
+* Implements Drupals _help 
+* @param undefined $path
+* @param undefined $arg
+*
+* @return
+*/
+function mri_webform_ano_help($path, $arg)
+{
+  switch ($path) {
+    // entry in help - system
+    case 'admin/help#mri_webform_ano':
+    return '<p>' . t(' This module enables the masking of IP addresses after sending Webforms. There are three possibilities:<br>
+      Cross Sum of Third and fourth IP octet.<br>
+      Cross Sum of the fourth IP octet.<br>
+      Overwriting the fourth IP octet with a default value.<br><br>
+      The following permissions can be set: view module configuration, edit module configuration.<br><br>
+
+      Usefull Links:<br>
+      <a href="@mriipanoconf">MRI Webform Anonymizer Config Form</a>',
+      array(
+        '@mriipanoconf'=> url('mri/webform/ip-anonymizer'),
+      )
+    ) . '</p>';
+    //
+    case 'mri/webform/ip-anonymizer':
+    return '<p>' . t('This is the Config Form of the MRI Webform IP Anonymizer. <a href="@mriipanoconf">[Help]</a><br>',
+      array(
+        '@mriipano'=> url('admin/help/mri_webform_ano'),
+      )) . '</p>';
+  }
+}
+
+/**
+* Menu Path to config the module / module settings
+* 
+* @return
+*/
+function mri_webform_ano_menu() {
+  $items['mri/webform/ip-anonymizer'] = array(//URL call for this form
+    'title'=> 'MRI Webform IP Anonymizer Config page',//page title
+    'description'=> 'A form to define the kind of IP mask to apply.',
+    'page callback'  => 'drupal_get_form',// function will be called when the page is accessed.
+    'page arguments' => array('mri_webform_ano_form_conf'),// form name
+    'type'=> MENU_NORMAL_ITEM,
+    'access callback'=> TRUE,
+    'access arguments' => array('mri webform view anymizer config permissions'),
+  );
+  $items['admin/config/webform/ip-anonymizer'] = array(//URL call for this form
+    'title'=> 'MRI Webform IP Anonymizer Config page',//page title
+    'description'=> 'A form to define the kind of IP mask to apply.',
+    'page callback'   => 'drupal_get_form',// function will be called when the page is accessed.
+    'page arguments' => array('mri_webform_ano_form_conf'),// form name
+    'type'=> MENU_NORMAL_ITEM,
+    'access callback' => TRUE,
+    'access arguments' => array('mri webform view anymizer config permissions'),
+  );
+  return $items;
+}
+
+/**
+* Implements hook _permission
+* Set the permission entries in Backend, and make the permissions available
+* @param undefined $ip
+* @param undefined $default_oct_type
+* 
+* @return
+*/
+function mri_webform_ano_permission() {
+  return array(
+    'mri webform view anymizer config permissions' => array(
+      'title'      => t('View the MRI Webform Config Mask'),
+      'description'=> t('View the config Mask and the currently activated settings.'),
+    ),
+    'mri webform edit anymizer config permissions' => array(
+      'title'      => t('Edit the MRI Webform Config Mask'),
+      'description'=> t('Permission to change the config Mask and the currently activated settings.'),
+    ),
+  );
+}
+
+/**
+* Implements mri_webform_ano_settings_form().
+* Config Form with option to define which kind of mask is to apply to IP
+*
+* @param undefined $form
+* @param undefined $form_state
+*
+* @return
+*/
+function mri_webform_ano_form_conf($form, &$form_state) {
+	if (user_access('mri webform view anymizer config permissions')) {
+	  $config_data = mri_webform_ano_load_config_data();
+
+	  $form['octett_settings'] = array(
+	    '#type'         => 'radios',
+	    '#options'         =>  array(
+	      'cross_sum_last_two_octets' => 'Cross Summ of the last two Octets',
+	      'cross_sum_last_octet'      => 'Cross Summ of the last Octet',
+	      'override_random_last_octet'=> 'Override last IP Octet with 1111',
+	      'show'                      => 'show last IP octet'),
+	    '#validated'    => TRUE,
+	    '#default_value'=> $config_data['default_oct_type'],
+	    '#title'        => 'Mask. IP Octet(s) > HappyTesting',
+	  );
+	  $form['example_ip_ckbx'] = array(
+	    '#type'         => 'radios',
+	    '#validated'    => TRUE,
+	    '#options'         => array(
+	    	'testmode_on' => 'Testmodus On',
+	    	'testmode_off' => 'Testmodus Off'),
+	    '#default_value'=> $config_data['default_testmode'],
+	    '#description'  => 'In his default Behavior use Webform the IP from your connection if you save the webform.<br>With this Option have you the possibility to write any IP you want to try. The IPAdress will be regular saved in DB',
+	    '#title'        => 'IP Adress Testing Options',
+	  );
+	  $form['example_ip'] = array(
+	    '#type'         => 'textfield',
+	    '#validated'    => FALSE,
+	    '#default_value'=> variable_get('example_ip'),
+	    '#description'  => 'For test purposes, you can enter any IP.<br>HINT: Be sure to enter a valid IP. eg. 192.168.26.12 or 108.152.23.16',
+	    '#title'        => 'Example IP Field',
+	  );
+	  $form['encode_settings'] = array(
+	    '#type'         => 'radios',
+	    '#options'         =>  array('md5' => 'MD5','hs1' => 'HS1','none'=> 'No encrypting'),
+	    '#validated'    => TRUE,
+	    '#default_value'=> $config_data['default_enc_type'],
+	    '#description'  => 'Currently the encrypt function does not work. Encryption will be done. IP-Adress Value save into DB will be done. It seems the Webform Module comes sometimes in Trouble if user viewing the result tables of webforms.',
+	    '#title'        => 'Encrypt Settings <strong>do not use at the moment</strong>.',
+	  );
+
+	  $form['save'] = array(
+	    '#type'    => 'submit',
+	    '#value'   =>  'Save',
+	    '#submit'     =>  array('mri_webform_ano_config_form_submit'),
+	    '#validate' =>  array('mri_webform_ano_config_form_validate'),
+	  );
+	  return $form;
+	}
+	else {
+		drupal_set_message(t('View Permission missing. The config form could not be viewed.'), 'status');
+	}
+	  
+}
+
+/**
+* Implements the validate of the config FORM _form_validate() >> NOT IN USE AT THE MOMENT.
+* @param undefined $form
+* @param undefined $form_state
+* 
+* @return
+*/
+function mri_webform_ano_config_form_validate($form, $form_state) {
+  /*
+  if ($form_state['values']['privacy_settings'] == 'private') {
+	  if ((strlen($form_state['values']['passwd']) < 6)) {
+	  	form_set_error('passwd', 'Please enter minimum six charecters of password');
+	  }
+  }
+  */
+  if ($form_state['values']['example_ip_ckbx'] == 'testmode_on') {
+  	if (filter_var($form_state['values']['example_ip'], FILTER_VALIDATE_IP)) {
+    	drupal_set_message(t($form_state['values']['example_ip']. ' is a valid IP address'), 'status');
+		} 
+		else {				
+			form_set_error('example_ip', $form_state['values']['example_ip']. ' is not a valid IP address');
+		}  	 	
+  }
+ 
+}
+/**
+* Loads the Config Data from DB.
+* If no DataEntry available, default Valies will be settted
+* 
+* @return
+*/
+
+function mri_webform_ano_load_config_data() {
+	$query = mri_webform_ano_get_config_query();
+  $result = NULL;
+	$config_settings = array(
+		'default_enc_type' => 'none', //default value of the predefined encrypt method
+		'default_oct_type' => 'show', //default is to show the IP completly
+		'default_testmode' => 'testmode_off',
+	);
+	
+  if ($query->rowCount() != NULL) {
+	  $result = $query->fetchObject();
+	  $config_settings['default_enc_type'] = $result->enc_type;
+	  $config_settings['default_oct_type'] = $result->repl_type;
+	  $config_settings['default_testmode'] = $result->repl_testmode;
+	}
+	else {
+	  drupal_set_message('No Config Data available at the moment! Default Values are now activated. Please config the module in a first step, directly after Activating!', 'status');
+	}
+		return $config_settings;
+}
+/**
+* Writes config Data to DB
+* @param undefined $form_state
+* 
+* @return
+*/
+function mri_webform_ano_write_conf_data($form_state) {
+	$query = mri_webform_ano_get_config_query();
+    if ($query->rowCount() > 0) {
+      db_update('webform_mri_conf')
+      ->fields(array(
+          'enc_type' => $form_state['values']['encode_settings'],
+          'repl_type' => $form_state['values']['octett_settings'],
+          'repl_testmode' => $form_state['values']['example_ip_ckbx'],
+        ))
+      //->condition('created', REQUEST_TIME - 3600, ' >= ')
+      ->execute();
+      drupal_set_message("successfully UPDATED Settings");
+    }
+    else {
+      //Possibility to insert an custom form value.
+      db_insert('webform_mri_conf')
+      ->fields(array(
+          'enc_type' => $form_state['values']['encode_settings'],
+          'repl_type'=> $form_state['values']['octett_settings'],
+          'repl_testmode' => $form_state['values']['example_ip_ckbx'],
+        ))->execute();
+      drupal_set_message("successfully > Settings FIRST SAVE");
+    }
+}
+
+/**
+* returns the query to get the config data in table webform_mri_conf
+*
+* @return
+*/
+function mri_webform_ano_get_config_query()
+{
+  $query = db_select('webform_mri_conf', 'wmriconf')
+  ->fields('wmriconf', array('enc_type','repl_type','repl_testmode'))
+  ->condition('wmriconf.wmaid', 1)
+  ->range(0, 1)
+  ->execute();
+  return $query;
+}
+
+/**
+* Implements the config Form of the Module _form_submit().
+*/
+function mri_webform_ano_config_form_submit($form, $form_state) {
+  global $user; //TODO: var nicht (mehr) in Gebrauch.. entfernen/var not in use > remove
+  if (user_access('mri webform edit anymizer config permissions')) {
+  	
+  	 if ($form_state['values']['example_ip_ckbx'] == 'testmode_on') {
+  	 
+  	 	variable_set('example_ip', $form_state['values']['example_ip']);
+  	 	
+  	 }
+  	 else {
+		 	variable_del('example_ip'); //cache Variable
+		 }		 
+		 mri_webform_ano_write_conf_data($form_state);
+  }
+  else {
+		drupal_set_message(t('Permission missing. Config could not be saved.'), 'status');
+	}
+
+}
+
+/**
+* 
+* @param undefined $remote_addr
+* @param undefined $encodeTyp
+* 
+* @return
+*/
+function mri_webform_ano_ip_encode($remote_addr, $encodeTyp) {
+		
+	switch($encodeTyp){
+		case 'md5':
+			$remote_addr = md5($remote_addr);
+			break;
+		case 'hsl':
+			$remote_addr = md5($remote_addr);
+			break;
+		default:
+			break;
+	}
+	drupal_set_message(t('The Remote Submission Sender IP.'.$submission->remote_addr), 'status');
+  return $remote_addr;
+}
+
+/**
+* Get the IP and the config value ($default_oct_type) as Parameter to modify (mask ip octet) the ip.
+* @param undefined $ip
+* @param undefined $default_oct_type
+*
+* @return
+*/
+function mri_webform_ano_ip_cutter($ip, $default_oct_type)
+{
+  if ($ip != NULL) {
+    $ip = explode(".", $ip);
+  }
+  else {
+    drupal_set_message('No IP Adress is set. Error in function <strong>mri_webform_ano_ip_cutter</strong>', 'error');
+  }
+
+  //execute the IP masquerade in dependency to the choosed mask parameter of the config form
+  switch ($default_oct_type) {
+    case 'cross_sum_last_two_octets':
+	    $ip[2] = array_sum(str_split($ip[2]));
+	    $ip[3] = array_sum(str_split($ip[3]));
+    break;
+    case 'cross_sum_last_octet':
+    	$ip[3] = array_sum(str_split($ip[3]));
+    break;
+    case 'override_random_last_octet':
+    	$ip[3] = '1111';
+    break;
+    default:
+    break;
+  }
+  $ip = implode(".", $ip);
+  return $ip;
+}
+
+
+

@@ -1,0 +1,12 @@
+name = MRI Webform
+description = IP Anonymizer for webforms in rudimentary/experimental mode/version.
+dependencies[] = webform
+package = "MRI"
+project = "mri_webform_ano"
+core = 7.x
+files[] = mri_webform_ano.test
+files[] = mri_webform_ano.module
+files[] = mri_webform_ano.install
+files[] = mri_webform_ano.functions
+scripts[] = mri_webform_ano.main.js
+stylesheets[all][] = mri_webform_ano.main.css

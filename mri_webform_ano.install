@@ -1,0 +1,104 @@
+<?php
+/**
+* Implements hook _install
+* NOT IN USE AT THE MOMENT >> Link entry will only be settet through hook _menu
+* @return
+*/
+function mri_webform_ano_install(){
+	/*
+  // Array must be passed by reference ... ugly
+  // as a local variable first to avoid triggering strict warnings.
+  $item = array(
+    'link_path' => 'admin/config/webform/ip-anonymizer',
+    'link_title' => 'Link to MRI Module admin pages',
+    'menu_name' => 'management',
+    'weight' => 0,
+    'expanded' => 0,
+  );
+ 
+  // On save $item is passed by reference 
+  $item_id = menu_link_save($item);
+  */
+}
+
+/**
+* Implements _uninstall
+* 
+* @return
+*/
+function mri_webform_ano_uninstall(){
+	
+}
+/**
+* Implements hook Schema
+* 
+* @return
+*/
+function mri_webform_ano_schema(){
+	//table for config data
+ $schema['webform_mri_conf'] = array(
+  'description' => 'The base table for MRI Webform Anonymizer Config.',
+  'fields' => array(
+    'wmaid' => array(
+      'description' => 'The primary identifier for a MRI Webform Anonymizer Config Entry.',
+      'type' => 'int',
+      'length' => 2,
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 1),
+    'enc_type' => array(
+      'description' => 'The encode typ in use MD5,SHA,Crypt.',
+      'type' => 'varchar',
+      'length' => 32,
+      'not null' => TRUE,
+      'default' => 'none'),
+    'repl_type' => array(
+      'description' => 'Kind of IP replacement. Without last ip octet, or encoded.',
+      'type' => 'varchar',
+      'length' => 32,
+      'not null' => TRUE,
+      'default' => 'show'),
+    'repl_testmode' => array(
+      'description' => 'IP Testadress on/off. For tests with IP Adresses,',
+      'type' => 'varchar',
+      'length' => 15,
+      'not null' => TRUE,
+      'default' => 'testmode_off'),
+    ),
+  //'primary key' => array('wmaid'),
+  );
+  
+  //table for referencing IP Hash with SID (webform id)
+ $schema['webform_mri_ref'] = array(
+  'description' => 'The Reference table for MRI Webform Anonymizer Config.',
+  'fields' => array(
+    'wid' => array(
+      'description' => 'The primary identifier for the Webform Reference Entry.',
+      'type' => 'serial',
+      'unsigned' => TRUE,
+      'not null' => TRUE),
+    'sid' => array(
+      'description' => 'The SID from sent Webform.',
+      'type' => 'varchar',
+      'length' => 12,
+      'not null' => TRUE,
+      'default' => 'unset'),
+    'hash' => array(
+      'description' => 'The generatet HASH from IP.',
+      'type' => 'varchar',
+      'length' => 128,
+      'not null' => TRUE,
+      'default' => 'unset'),
+    'fic_octet' => array(
+      'description' => 'Kind of IP replacement. Without last ip octet, or encoded.',
+      'type' => 'varchar',
+      'length' => 8,
+      'not null' => TRUE,
+      'default' => '1234'),
+    ),
+  'primary key' => array('wid'),
+  );
+  return $schema;
+}
+
+

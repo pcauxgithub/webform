@@ -1,0 +1,27 @@
+MRI Webform IP Anonymizer 7.x-0.1-ALPHA1, 2017-10-21
+---------------------------------
+
+Additional Files and changes on module.info file
+	Create CHANGELOG File.
+	Create README File.
+	Create mri_webform_ano.main.css File.
+	Create mri_webform_ano.main.js File.
+Changes module.info file (added text entrys for additional files)
+Files added and made availabe via module.info file: 
+	main.css
+	main.js
+Connected to Drupals permission System with two Setting-Options: 
+	mri webform view anymizer config permissions 
+	mri webform edit anymizer config permissions
+Change the position of MRI MenuEntry. The Entry can be found now in admin/donfig/mri
+Testmodus for imaganary IPs optimized: 
+	Creates a Checkbox to activate/deactivate Testmodus
+	IP Format checker integratet (form Validating)
+	Changed DB Table structure of config table (col for checkbox value added)
+Code Optimation
+	Creates additional functions to write/read Config Data from DB
+Tests: Deinstallation of MRI Module
+
+MRI Webform IP Anonymizer 7.x-0.
+---------------------------------
+
